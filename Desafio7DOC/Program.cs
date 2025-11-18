@@ -1,7 +1,13 @@
-﻿using RestSharp;
+﻿using Desafio7DOC.Controller;
+using Desafio7DOC.Model;
+using Desafio7DOC.Service;
+using Desafio7DOC.Views;
+using RestSharp;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -12,67 +18,50 @@ namespace Desafio7DOC
     {
         static async Task Main(string[] args)
         {
+            List<Pokemon> pokemonsAdotads = new List<Pokemon>();
+            PokeMenu menus = new PokeMenu();
+            var servicos = new PokemonApiService();
+            var controller = new PokemonTamagochiController();
 
-            Console.WriteLine("Escolha o seu Pokémon");
-            string pokemonEscolhido = Console.ReadLine();
-            Console.Clear();
-            try
+            menus.MenuBoasVindas();
+
+            menus.MenuInicial();
+
+            do
             {
-                using (var httpClient = new HttpClient())
+                switch (menus.EscolhaUsuario())
                 {
-                    var response = await httpClient.GetAsync($"https://pokeapi.co/api/v2/pokemon/{pokemonEscolhido}");
-                    response.EnsureSuccessStatusCode();
-                    var content = await response.Content.ReadAsStringAsync();
+                    case 1:
+                        string nomePokemonBuscar = controller.BuscarPokemon();
+                        await servicos.BuscarPokemonNaApiAsync(nomePokemonBuscar);
 
-                    var pokemon = JsonSerializer.Deserialize<Pokemon>(content);
+                        controller.ExibirInformacoesPokemon(servicos.pokemonsBuscados.Peek());
 
-                    Console.WriteLine($"INFORMAÇÕES DE {pokemonEscolhido}");
-                    Console.WriteLine($"Nome do Pokémon: {pokemon.Nome.ToUpper()}\n" +
-                                      $"Altura: {pokemon.Altura}\n" +
-                                      $"Peso: {pokemon.Peso}\n" +
-                                      $"HABILIDADES:\n");
+                        menus.ConfirmarAdocao();
+                        switch (menus.EscolhaUsuario())
+                        {
+                            case 1:
+                                controller.AdicionarPokemon(pokemonsAdotads, servicos.pokemonsBuscados.Peek());
+                                Console.WriteLine("Pokémon adotado com sucesso!!");
+                                servicos.pokemonsBuscados.Pop();
+                                break;
+                            case 2:
+                                break;
+                            default:
+                                Console.WriteLine("Opção inválida!");
+                                break;
+                        }
 
-                    foreach (var habilidade in pokemon.Habilidades)
-                    {
-                        Console.WriteLine(habilidade.InfoHabilidade.NomeHabilidade.ToUpper());
-                    }
+                        break;
 
+                    case 2:
+                        foreach (var pokemon in pokemonsAdotads)
+                            Console.WriteLine(pokemon.Nome);
+                        break;
                 }
 
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Erro: {ex.Message}");
-            }
-
-            Console.ReadLine();
+            }while (menus.EscolhaUsuario() != 0);
         }
     }
 
-    public class Pokemon
-    {
-        [JsonPropertyName("name")]
-        public string Nome { get; set; }
-
-        [JsonPropertyName("height")]
-        public int Altura { get; set; }
-
-        [JsonPropertyName("weight")]
-        public int Peso { get; set; }
-
-        [JsonPropertyName("abilities")]
-        public List<HabilidadePokemon> Habilidades { get; set; }
-    }
-
-    public class HabilidadePokemon
-    {
-        [JsonPropertyName("ability")]
-        public HabilidadeInfo InfoHabilidade { get; set; }
-    }
-
-    public class HabilidadeInfo
-    {
-        [JsonPropertyName("name")]
-        public string NomeHabilidade { get; set; }
-    }
 }
